@@ -1217,8 +1217,10 @@ class StateMachine(State):
         # Draw self
         fn, lno = source_info(state)
         data += f"{state.name}.class: state # {fn}#{lno}\n"
-        # if highlight_active and state.is_active:
-        #     data += "##[bold] "
+        if highlight_active and state.is_active:
+            data += f'{state.name}.style.stroke: "#ff0000"\n'
+            data += f"{state.name}.style.stroke-width: 4\n"
+
         data += f"{state.name}: " + "{\n"
 
         if show_visits:
@@ -1260,6 +1262,10 @@ class StateMachine(State):
 
             if show_visits:
                 data += f"\t{s.name}.label: {s.name} ({s.visits})\n"
+
+            if highlight_active and s.is_active:
+                data += f'\t{s.name}.style.stroke: "#ff0000"\n'
+                data += f"\t{s.name}.style.stroke-width: 4\n"
 
             # data += f": {desc}\n"
 
@@ -1337,7 +1343,6 @@ class StateMachine(State):
         # TODO: Directly generate SVG
 
         # TODO: Optional highlight last transition taken
-        # TODO: Optional highlight visited states
         # TODO: Option highlight vistited transitions
 
         if filename is None:
@@ -1351,9 +1356,6 @@ class StateMachine(State):
 
         if note is not None and not isinstance(note, str):
             raise ValueError("Note must be a string")
-
-        if highlight_active:
-            raise NotImplementedError("Highlighting not yet supported in D2")
 
         data = f"# State Machine: {self.name}"
         data += "# D2 State Diagram"
