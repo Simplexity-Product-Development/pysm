@@ -37,8 +37,6 @@ import textwrap
 #       Might be better to do as a replay of a log file.
 #       Take a state machine definition & log file and generate a diagram
 #       Might want to generate a gantt chart too.
-# TODO: List vistited states:  StateMachine::states_visitied->list[State]
-# TODO: List unvitisted states: StateMachine::states_unvisited->list[State]
 # TODO: List all transitions: StateMachine::transitions_all->list[(State,State,str)].
 # TODO: List visited transitions: StateMachine:transitions_visited->list[(State,State,str))]
 # TODO: List visit count for all transitions: StateMachine:transitions_visits->dict[(State,State,str)),int]
@@ -670,6 +668,22 @@ class StateMachine(State):
             if isinstance(state, StateMachine):
                 states.extend(state.states_all)
         return states
+
+    @property
+    def states_visited(self) -> list[State]:
+        """
+        Returns list of all states that have been visited.
+        """
+
+        return [state for state in self.states_all if state.visited]
+
+    @property
+    def states_unvisited(self) -> list[State]:
+        """
+        Returns list of all states that have not been visited.
+        """
+
+        return [state for state in self.states_all if not state.visited]
 
     def state_get_by_name(self, name: str) -> State:
         """

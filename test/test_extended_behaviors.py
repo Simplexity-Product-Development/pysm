@@ -33,7 +33,7 @@ def test_get_state(complex_state_machine):
     assert state.name == name
 
 
-def test_visit_counting(complex_state_machine):
+def test_visit_tracking(complex_state_machine):
     sm = complex_state_machine
     sm.initialize()
 
@@ -53,6 +53,18 @@ def test_visit_counting(complex_state_machine):
     state_paused = sm.state_get_by_name("Paused")
     assert state_paused.visits == 0
     assert not state_paused.visited
+
+    # Lists of states visited
+    visited = sm.states_visited
+    assert len(visited) == 2  # Working, Substate1
+    assert state_working in visited
+    assert state_substate1 in visited
+
+    # List of states unvisited
+    unvisited = sm.states_unvisited
+    assert len(unvisited) == 2  # Substate2, Paused
+    assert state_substate2 in unvisited
+    assert state_paused in unvisited
 
     # Force a transition and recheck state visit counts
     sm.dispatch(Event("step_complete"))
