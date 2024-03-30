@@ -1190,7 +1190,11 @@ class StateMachine(State):
     # simple checks.
     # flake8: noqa: C901
     def _state_to_d2(
-        self, state, data: str = "", highlight_active: bool = False
+        self,
+        state,
+        data: str = "",
+        highlight_active: bool = False,
+        show_visits: bool = False,
     ) -> str:
         """
         Generate a D2 diagram for a single state
@@ -1216,6 +1220,9 @@ class StateMachine(State):
         # if highlight_active and state.is_active:
         #     data += "##[bold] "
         data += f"{state.name}: " + "{\n"
+
+        if show_visits:
+            data += f"\tlabel: {state.name} ({state.visits})\n"
 
         if self.description:
             desc = textwrap.wrap(self.description, width=40)
@@ -1250,6 +1257,9 @@ class StateMachine(State):
             data += f"\t{s.name}.class: state # {fn}#{lno}\n"
             # if highlight_active and s.is_active:
             #     data += " #line.bold;"
+
+            if show_visits:
+                data += f"\t{s.name}.label: {s.name} ({s.visits})\n"
 
             # data += f": {desc}\n"
 
@@ -1286,7 +1296,10 @@ class StateMachine(State):
         for s in self.states:
             if isinstance(s, StateMachine):
                 data = s._state_to_d2(
-                    s, data, highlight_active=highlight_active
+                    s,
+                    data,
+                    highlight_active=highlight_active,
+                    show_visits=show_visits,
                 )
 
         data += "}\n"
@@ -1298,23 +1311,23 @@ class StateMachine(State):
         filename: str | None = None,
         note: str | None = None,
         highlight_active: bool = False,
+        show_visits: bool = False,
     ) -> str:
         """
         Generates D2 state diagram.
 
         D3 diagrams: https://d2lang.com/
 
-        To install the D2 binary:
-        TODO: Instructions
+        To install the D2 binary: https://d2lang.com/tour/install
 
-        VSCode viewer plugin:
-        TODO: Link
+        VSCode viewer plugin: https://marketplace.visualstudio.com/items?itemName=terrastruct.d2
 
         Parameters
         ----------
         filename(str, optional): Name of the file to save the diagram to.
         note(str, optional): Optional note to add to the diagram.
         highlight_active(bool, optional): Highlight the currently active states.
+        show_visits(bool, optional): Show number of visits next to state name.
 
         Returns
         -------
@@ -1333,8 +1346,14 @@ class StateMachine(State):
             raise ValueError("Filename must be a string")
         filename = Path(filename).with_suffix(".d2")  # type: ignore
 
+        if note:
+            raise NotImplementedError("Note not yet supported in D2")
+
         if note is not None and not isinstance(note, str):
             raise ValueError("Note must be a string")
+
+        if highlight_active:
+            raise NotImplementedError("Highlighting not yet supported in D2")
 
         data = f"# State Machine: {self.name}"
         data += "# D2 State Diagram"
@@ -1381,7 +1400,12 @@ class StateMachine(State):
         #     data += f'note "{note}" as N1\n'
 
         # data += f"\t{self.name}: {self.description}\n"
-        data = self._state_to_d2(self, data, highlight_active=highlight_active)
+        data = self._state_to_d2(
+            self,
+            data,
+            highlight_active=highlight_active,
+            show_visits=show_visits,
+        )
 
         # Write to file
         with open(str(filename), "w") as f:
