@@ -37,14 +37,12 @@ import textwrap
 #       Might be better to do as a replay of a log file.
 #       Take a state machine definition & log file and generate a diagram
 #       Might want to generate a gantt chart too.
-# TODO: List all transitions: StateMachine::transitions_all->list[(State,State,str)]
-# TODO: List visit count for all states: StateMachine::states_visits->dict[State,int]
-# TODO: List visit count for all transitions: StateMachine:transitions_visits->dict[(State,State,str)),int]
 # TODO: List vistited states:  StateMachine::states_visitied->list[State]
-# TODO: List visited transitions: StateMachine:transitions_visited->list[(State,State,str))]
 # TODO: List unvitisted states: StateMachine::states_unvisited->list[State]
+# TODO: List all transitions: StateMachine::transitions_all->list[(State,State,str)].
+# TODO: List visited transitions: StateMachine:transitions_visited->list[(State,State,str))]
+# TODO: List visit count for all transitions: StateMachine:transitions_visits->dict[(State,State,str)),int]
 # TODO: List univisited transitions: StateMachine:transitions_unvisited->list[(State,State,str))]
-# TODO: Use the Repo class to add link to source code for D2 diagrams.
 
 # Required to make it Micropython compatible
 if str(type(defaultdict)).find("module") > 0:
@@ -264,9 +262,26 @@ class State(object):
         self.handlers = {}
         self.initial = False
         self.register_handlers()
+        self._visits = 0
 
     def __repr__(self):
         return "<State {0} ({1})>".format(self.name, hex(id(self)))
+
+    @property
+    def visits(self) -> int:
+        """
+        Number of times state has been visited.
+        """
+
+        return self._visits
+
+    @property
+    def visited(self) -> bool:
+        """
+        True if state has been visited.
+        """
+
+        return self._visits > 0
 
     def register_handlers(self):
         """Hook method to register event handlers.
@@ -830,6 +845,7 @@ class StateMachine(State):
         for state in self.state_path:
             evt = Event("enter", propagate=False)
             state._on(evt)
+            state._visits += 1
 
     def dispatch(self, event):
         """Dispatch an event to a state machine.
@@ -907,6 +923,7 @@ class StateMachine(State):
             enter_event.state_machine = self
             self.root_machine._leaf_state = state
             state._on(enter_event)
+            state._visits += 1
             state.parent.state = state
 
     def set_previous_leaf_state(self, event=None):
