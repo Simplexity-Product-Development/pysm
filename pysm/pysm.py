@@ -1275,26 +1275,27 @@ class StateMachine(State):
 
         # Add in all of the transitions
         if hasattr(state, "_transitions"):
-            for event, trans in state._transitions._transitions.items():
-                if trans == []:
+            for (
+                trans_key,
+                trans_vals,
+            ) in state._transitions._transitions.items():
+                if trans_vals == []:
                     continue
 
-                t = trans[0]
-                src = t["from_state"].name
-                dest = t["to_state"]
-                if dest is None:
-                    dest = src
+                evt = str(trans_key[1])
 
-                # Event
-                evt = str(event[1])
-                # fcn = t["condition"]
-                # if fcn.__name__ != "_nop":
-                #     file = Path(fcn.__code__.co_filename).name
-                #     line = fcn.__code__.co_firstlineno
-                #     meta = "{" + file + "#" + str(line) + "}"
-                #     evt += f":[[{meta} {fcn.__name__}()]]\\n"
+                for trans_val in trans_vals:
+                    src = trans_val["from_state"]
+                    dest = trans_val["to_state"]
+                    if dest is None:
+                        dest = src
+                    action_name = trans_val["action"].__name__
+                    if action_name == "_nop":
+                        action_str = ""
+                    else:
+                        action_str = f" / {action_name}"
 
-                data += f"\t{src} --> {dest.name}: {evt}\n"
+                data += f"\t{src.name} --> {dest.name}: {evt}{action_str}\n"
 
         data += "\n"
 
@@ -1322,11 +1323,13 @@ class StateMachine(State):
         """
         Generates D2 state diagram.
 
-        D3 diagrams: https://d2lang.com/
+        D2 diagrams: https://d2lang.com/
 
-        To install the D2 binary: https://d2lang.com/tour/install
+        To install the D2 binary (necessary dependency), see install instructions
+        https://github.com/terrastruct/d2/blob/master/docs/INSTALL.md
 
-        VSCode viewer plugin: https://marketplace.visualstudio.com/items?itemName=terrastruct.d2
+        VSCode viewer plugin:
+        https://marketplace.visualstudio.com/items?itemName=terrastruct.d2
 
         Parameters
         ----------
@@ -1357,12 +1360,21 @@ class StateMachine(State):
         if note is not None and not isinstance(note, str):
             raise ValueError("Note must be a string")
 
-        data = f"# State Machine: {self.name}"
-        data += "# D2 State Diagram"
-        data += "# https://d2lang.com/"
+        data = f"# State Machine: {self.name}\n"
+        data += "# D2 State Diagram\n"
+        data += "# https://d2lang.com/\n"
 
         data += textwrap.dedent(
             """
+        # Specify Layout engine
+        # Default 'dagre' does not support self-transitions on
+        # hierarchical diagrams.
+        vars: {
+            d2-config: {
+                layout-engine: elk
+            }
+        }
+
         # Special Classes
         classes: {
 
