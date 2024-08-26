@@ -65,6 +65,9 @@ def test_d2_with_tracking(complex_state_machine):
     sm = complex_state_machine
     sm.initialize()
 
+    sm.dispatch(pysm.Event("step_complete"))
+    sm.dispatch(pysm.Event("step_complete"))
+
     fn = f"HSM-{sm.name}-tracking.d2"
     d2 = sm.to_d2(show_visits=True, highlight_active=True, filename=fn)
 
