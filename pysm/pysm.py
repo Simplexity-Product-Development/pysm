@@ -1233,7 +1233,7 @@ class StateMachine(State):
                     continue
 
                 t = trans[0]
-                src = t["from_state"].name
+                src = t["from_state"]
                 dest = t["to_state"]
                 if dest is None:
                     dest = src
@@ -1247,7 +1247,7 @@ class StateMachine(State):
                 #     meta = "{" + file + "#" + str(line) + "}"
                 #     evt += f":[[{meta} {fcn.__name__}()]]\\n"
 
-                data += f"\t{src} --> {dest.name}: {evt}\n"
+                data += f"\t{src.name} --> {dest.name}: {evt}\n"
 
         data += "\n"
 
@@ -1271,13 +1271,13 @@ class StateMachine(State):
         """
         Generates D2 state diagram.
 
-        D3 diagrams: https://d2lang.com/
+        D2 diagrams: https://d2lang.com/
 
-        To install the D2 binary:
-        TODO: Instructions
+        To install the D2 binary (necessary dependency), see install instructions
+        https://github.com/terrastruct/d2/blob/master/docs/INSTALL.md
 
         VSCode viewer plugin:
-        TODO: Link
+        https://marketplace.visualstudio.com/items?itemName=terrastruct.d2
 
         Parameters
         ----------
