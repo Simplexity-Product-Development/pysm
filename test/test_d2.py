@@ -13,7 +13,8 @@ def test():
     
     import test_complex_hsm
     sm = test_complex_hsm.m
-    sm.to_d2()
+    d2 = sm.to_d2()
+    assert len(d2) > 0
 
 if __name__ == '__main__':
     test()
