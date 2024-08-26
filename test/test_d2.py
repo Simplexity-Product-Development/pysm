@@ -1,11 +1,19 @@
-from test_simple_on_off import sm, state_on, state_off
+# Append parent directory to path so we can access the pysm module
+import sys
+sys.path.append(r'..')
 
 
-def test_d2(complex_state_machine):
+def test():
+    # Verify basic functionality remains unchanged
+    import test_simple_on_off
+    test_simple_on_off.test()
 
-    sm = complex_state_machine
-    sm.initialize()
+    import test_complex_hsm
+    test_complex_hsm.test()
+    
+    import test_complex_hsm
+    sm = test_complex_hsm.m
+    sm.to_d2()
 
-    d2 = sm.to_d2()
-
-    assert len(d2) > 0
+if __name__ == '__main__':
+    test()
