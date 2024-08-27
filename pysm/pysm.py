@@ -37,14 +37,10 @@ import textwrap
 #       Might be better to do as a replay of a log file.
 #       Take a state machine definition & log file and generate a diagram
 #       Might want to generate a gantt chart too.
-# TODO: List all transitions: StateMachine::transitions_all->list[(State,State,str)]
-# TODO: List visit count for all states: StateMachine::states_visits->dict[State,int]
-# TODO: List visit count for all transitions: StateMachine:transitions_visits->dict[(State,State,str)),int]
-# TODO: List vistited states:  StateMachine::states_visitied->list[State]
+# TODO: List all transitions: StateMachine::transitions_all->list[(State,State,str)].
 # TODO: List visited transitions: StateMachine:transitions_visited->list[(State,State,str))]
-# TODO: List unvitisted states: StateMachine::states_unvisited->list[State]
+# TODO: List visit count for all transitions: StateMachine:transitions_visits->dict[(State,State,str)),int]
 # TODO: List univisited transitions: StateMachine:transitions_unvisited->list[(State,State,str))]
-# TODO: Use the Repo class to add link to source code for D2 diagrams.
 
 # Required to make it Micropython compatible
 if str(type(defaultdict)).find("module") > 0:
@@ -264,9 +260,26 @@ class State(object):
         self.handlers = {}
         self.initial = False
         self.register_handlers()
+        self._visits = 0
 
     def __repr__(self):
         return "<State {0} ({1})>".format(self.name, hex(id(self)))
+
+    @property
+    def visits(self) -> int:
+        """
+        Number of times state has been visited.
+        """
+
+        return self._visits
+
+    @property
+    def visited(self) -> bool:
+        """
+        True if state has been visited.
+        """
+
+        return self._visits > 0
 
     def register_handlers(self):
         """Hook method to register event handlers.
@@ -656,6 +669,22 @@ class StateMachine(State):
                 states.extend(state.states_all)
         return states
 
+    @property
+    def states_visited(self) -> list[State]:
+        """
+        Returns list of all states that have been visited.
+        """
+
+        return [state for state in self.states_all if state.visited]
+
+    @property
+    def states_unvisited(self) -> list[State]:
+        """
+        Returns list of all states that have not been visited.
+        """
+
+        return [state for state in self.states_all if not state.visited]
+
     def state_get_by_name(self, name: str) -> State:
         """
         Get a state by name.
@@ -830,6 +859,7 @@ class StateMachine(State):
         for state in self.state_path:
             evt = Event("enter", propagate=False)
             state._on(evt)
+            state._visits += 1
 
     def dispatch(self, event):
         """Dispatch an event to a state machine.
@@ -907,6 +937,7 @@ class StateMachine(State):
             enter_event.state_machine = self
             self.root_machine._leaf_state = state
             state._on(enter_event)
+            state._visits += 1
             state.parent.state = state
 
     def set_previous_leaf_state(self, event=None):
@@ -1159,7 +1190,11 @@ class StateMachine(State):
     # simple checks.
     # flake8: noqa: C901
     def _state_to_d2(
-        self, state, data: str = "", highlight_active: bool = False
+        self,
+        state,
+        data: str = "",
+        highlight_active: bool = False,
+        show_visits: bool = False,
     ) -> str:
         """
         Generate a D2 diagram for a single state
@@ -1182,9 +1217,14 @@ class StateMachine(State):
         # Draw self
         fn, lno = source_info(state)
         data += f"{state.name}.class: state # {fn}#{lno}\n"
-        # if highlight_active and state.is_active:
-        #     data += "##[bold] "
+        if highlight_active and state.is_active:
+            data += f'{state.name}.style.stroke: "#ff0000"\n'
+            data += f"{state.name}.style.stroke-width: 4\n"
+
         data += f"{state.name}: " + "{\n"
+
+        if show_visits:
+            data += f"\tlabel: {state.name} ({state.visits})\n"
 
         if self.description:
             desc = textwrap.wrap(self.description, width=40)
@@ -1220,6 +1260,13 @@ class StateMachine(State):
             # if highlight_active and s.is_active:
             #     data += " #line.bold;"
 
+            if show_visits:
+                data += f"\t{s.name}.label: {s.name} ({s.visits})\n"
+
+            if highlight_active and s.is_active:
+                data += f'\t{s.name}.style.stroke: "#ff0000"\n'
+                data += f"\t{s.name}.style.stroke-width: 4\n"
+
             # data += f": {desc}\n"
 
         # Initial state
@@ -1228,7 +1275,10 @@ class StateMachine(State):
 
         # Add in all of the transitions
         if hasattr(state, "_transitions"):
-            for trans_key, trans_vals in state._transitions._transitions.items():
+            for (
+                trans_key,
+                trans_vals,
+            ) in state._transitions._transitions.items():
                 if trans_vals == []:
                     continue
 
@@ -1253,7 +1303,10 @@ class StateMachine(State):
         for s in self.states:
             if isinstance(s, StateMachine):
                 data = s._state_to_d2(
-                    s, data, highlight_active=highlight_active
+                    s,
+                    data,
+                    highlight_active=highlight_active,
+                    show_visits=show_visits,
                 )
 
         data += "}\n"
@@ -1265,6 +1318,7 @@ class StateMachine(State):
         filename: str | None = None,
         note: str | None = None,
         highlight_active: bool = False,
+        show_visits: bool = False,
     ) -> str:
         """
         Generates D2 state diagram.
@@ -1282,6 +1336,7 @@ class StateMachine(State):
         filename(str, optional): Name of the file to save the diagram to.
         note(str, optional): Optional note to add to the diagram.
         highlight_active(bool, optional): Highlight the currently active states.
+        show_visits(bool, optional): Show number of visits next to state name.
 
         Returns
         -------
@@ -1291,7 +1346,6 @@ class StateMachine(State):
         # TODO: Directly generate SVG
 
         # TODO: Optional highlight last transition taken
-        # TODO: Optional highlight visited states
         # TODO: Option highlight vistited transitions
 
         if filename is None:
@@ -1299,6 +1353,9 @@ class StateMachine(State):
         if not isinstance(filename, str):
             raise ValueError("Filename must be a string")
         filename = Path(filename).with_suffix(".d2")  # type: ignore
+
+        if note:
+            raise NotImplementedError("Note not yet supported in D2")
 
         if note is not None and not isinstance(note, str):
             raise ValueError("Note must be a string")
@@ -1317,7 +1374,7 @@ class StateMachine(State):
                 layout-engine: elk
             }
         }
-                
+
         # Special Classes
         classes: {
 
@@ -1357,7 +1414,12 @@ class StateMachine(State):
         #     data += f'note "{note}" as N1\n'
 
         # data += f"\t{self.name}: {self.description}\n"
-        data = self._state_to_d2(self, data, highlight_active=highlight_active)
+        data = self._state_to_d2(
+            self,
+            data,
+            highlight_active=highlight_active,
+            show_visits=show_visits,
+        )
 
         # Write to file
         with open(str(filename), "w") as f:

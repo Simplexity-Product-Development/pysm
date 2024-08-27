@@ -1,7 +1,9 @@
 import sys
-sys.path.append(r'.')
+
+sys.path.append(r".")
 
 import pysm
+
 
 def test_d2():
     # Define general state machine for test
@@ -10,7 +12,7 @@ def test_d2():
     # Put a generic state in the SM
     state1 = pysm.State("state1")
     sm1.add_state(state1, initial=True)
-    
+
     # Create a child SM
     sm2 = pysm.StateMachine("sm2")
     sm1.add_state(sm2)
@@ -22,7 +24,10 @@ def test_d2():
     # Add a transition for the child SM that returns to itself
     def dummy_action(event, state):
         pass
-    sm1.add_transition(sm2, None, events=["evt_sm2->sm2_func"], action=dummy_action)
+
+    sm1.add_transition(
+        sm2, None, events=["evt_sm2->sm2_func"], action=dummy_action
+    )
 
     # Create initial landing state for child SM
     state2 = pysm.State("state2")
@@ -34,20 +39,40 @@ def test_d2():
     # Make new child state with other forms of transitions
     state3 = pysm.State("state3")
     sm2.add_state(state3)
-    sm2.add_transition(state2, state3, events=["evt_state2->state3_func"], action=dummy_action)
-    sm2.add_transition(state3, state2, events=["evt_state3->state2_func"], action=dummy_action)
-    sm2.add_transition(state3, state3, events=["evt_state3->state3_func"], action=dummy_action)
-    
+    sm2.add_transition(
+        state2, state3, events=["evt_state2->state3_func"], action=dummy_action
+    )
+    sm2.add_transition(
+        state3, state2, events=["evt_state3->state2_func"], action=dummy_action
+    )
+    sm2.add_transition(
+        state3, state3, events=["evt_state3->state3_func"], action=dummy_action
+    )
+
     # Intialise SM
     sm1.initialize()
 
     # Run tool to generate D2 graph
     d2 = sm1.to_d2()
 
+    # You can also check the output file: HSM-sm1.d2
     # Verify that the D2 graph is not empty.
     assert len(d2) > 0
 
-    # You can also check the output file: HSM-sm1.d2
 
-if __name__ == '__main__':
+def test_d2_with_tracking(complex_state_machine):
+
+    sm = complex_state_machine
+    sm.initialize()
+
+    sm.dispatch(pysm.Event("step_complete"))
+    sm.dispatch(pysm.Event("step_complete"))
+
+    fn = f"HSM-{sm.name}-tracking.d2"
+    d2 = sm.to_d2(show_visits=True, highlight_active=True, filename=fn)
+
+    assert len(d2) > 0
+
+
+if __name__ == "__main__":
     test_d2()
