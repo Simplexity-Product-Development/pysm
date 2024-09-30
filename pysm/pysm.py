@@ -1189,21 +1189,27 @@ class StateMachine(State):
     # This is a high complexity function, but most of the complexity is
     # simple checks.
     # flake8: noqa: C901
-    def _state_to_d2(
-        self,
-        state,
-        data: str = "",
+    def _state_machine_to_d2(
+        state_machine,
         highlight_active: bool = False,
         show_visits: bool = False,
+        level=0
     ) -> str:
         """
-        Generate a D2 diagram for a single state
+        Generate a D2 diagram for a state machine.
         """
 
         from pathlib import Path
         import inspect
 
         def source_info(obj):
+            """
+            Inspects an object `obj` for the file name that defines the class, and the line number of the class
+            constructor.
+
+            :param object obj: Object to inspect
+            :return: Tuple of `file_name` and `line_number`
+            """
             cls = obj.__class__
             line_number = cls.__dict__.get("__init__").__code__.co_firstlineno
             file_name = inspect.getfile(cls)
@@ -1211,105 +1217,122 @@ class StateMachine(State):
 
         # Parent draws child states.
         # If a child, we're done.
-        if not isinstance(state, StateMachine):
-            return data
+        if not isinstance(state_machine, StateMachine):
+            raise ValueError("Provided state_machine is not a StateMachine")
 
         # Draw self
-        fn, lno = source_info(state)
-        data += f"{state.name}.class: state # {fn}#{lno}\n"
-        if highlight_active and state.is_active:
-            data += f'{state.name}.style.stroke: "#ff0000"\n'
-            data += f"{state.name}.style.stroke-width: 4\n"
+        fn, lno = source_info(state_machine)
+        data = ""
+        data += '\t'*(level) + f"\"{state_machine.name}\".class: state # {fn}, line {lno}\n"
+        if highlight_active and state_machine.is_active:
+            data += '\t'*(level) + f"\"{state_machine.name}\".style.stroke: \"#ff0000\"\n"
+            data += '\t'*(level) + f"\"{state_machine.name}\".style.stroke-width: 4\n"
 
-        data += f"{state.name}: " + "{\n"
+        data += '\t'*(level) + f"\"{state_machine.name}\": {{\n"
 
         if show_visits:
-            data += f"\tlabel: {state.name} ({state.visits})\n"
+            data += '\t'*(level+1) + f"label: \"{state_machine.name} ({state_machine.visits})\"\n"
 
-        if self.description:
-            desc = textwrap.wrap(self.description, width=40)
+        if state_machine.description:
+            desc = textwrap.wrap(state_machine.description, width=40)
             desc = "\\n".join(desc)
-            data += f"\ttooltip: {desc}\n"
+            data += '\t'*(level+1) + f"tooltip: {desc}\n"
 
         # Denote history states
-        if isinstance(state, StateMachine) and state.is_history:
-            data += f"\tHistory.class: history\n"
+        if state_machine.is_history:
+            data += '\t'*(level+1) + f"History.class: history\n"
 
         # State descriptions
-        for s in state.states:
-            desc = ""
+        for s in state_machine.states:
             if isinstance(s, StateMachine):
-                desc = s.description
-                if desc != "":
-                    desc = "\\n".join(
-                        textwrap.wrap(desc, width=len(s.name) * 4)
-                    )
-                    desc += "\\n"
+                data += StateMachine._state_machine_to_d2(
+                    state_machine=s,
+                    highlight_active=highlight_active,
+                    show_visits=show_visits,
+                    level=level+1
+                )
+            else:
+                # desc = ""
+                # if isinstance(s, StateMachine):
+                #     desc = s.description
+                #     if desc != "":
+                #         desc = "\\n".join(
+                #             textwrap.wrap(desc, width=len(s.name) * 4)
+                #         )
+                #         desc += "\\n"
 
-            # List handler functions
-            for fcn in s.handlers.values():
-                file = Path(fcn.__code__.co_filename).name
-                line = fcn.__code__.co_firstlineno
-                meta = "{" + file + "#" + str(line) + "}"
-                desc += f"* [[{meta} {fcn.__name__}()]]\\n"
-            desc = desc.strip()
+                # # List handler functions
+                # for fcn in s.handlers.values():
+                #     file = Path(fcn.__code__.co_filename).name
+                #     line = fcn.__code__.co_firstlineno
+                #     meta = "{" + file + "#" + str(line) + "}"
+                #     desc += f"* [[{meta} {fcn.__name__}()]]\\n"
+                # desc = desc.strip()
 
-            # State info
-            fn, lno = source_info(s)
-            data += f"\t{s.name}.class: state # {fn}#{lno}\n"
-            # if highlight_active and s.is_active:
-            #     data += " #line.bold;"
+                # State info
+                fn, lno = source_info(s)
+                data += '\t'*(level+1) + f"\"{s.name}\".class: state # {fn}, line {lno}\n"
+                # if highlight_active and s.is_active:
+                #     data += " #line.bold;"
 
-            if show_visits:
-                data += f"\t{s.name}.label: {s.name} ({s.visits})\n"
+                if show_visits:
+                    data += '\t'*(level+1) + f"\"{s.name}\".label: \"{s.name} ({s.visits})\"\n"
 
-            if highlight_active and s.is_active:
-                data += f'\t{s.name}.style.stroke: "#ff0000"\n'
-                data += f"\t{s.name}.style.stroke-width: 4\n"
+                if highlight_active and s.is_active:
+                    data += '\t'*(level+1) + f"\"{s.name}\".style.stroke: \"#ff0000\"\n"
+                    data += '\t'*(level+1) + f"\"{s.name}\".style.stroke-width: 4\n"
 
-            # data += f": {desc}\n"
+                if len(s.handlers) > 0:
+                    data += '\t'*(level+1) + f"\"{s.name}\" {{\n"
+                    data += '\t'*(level+2) + f"\"{s.name}.handlers\": |md\n"
+                    for h_key, h_val in s.handlers.items():
+                        data += '\t'*(level+3) + f"- {h_key}: {h_val.__name__}()\n"
+                    data += '\t'*(level+2) + f"|\n"
+                    data += '\t'*(level+1) + "}\n"
+
+                # data += f": {desc}\n"
 
         # Initial state
-        data += f"\tInitial.class: initial\n"
-        data += f"\tInitial --> {state.initial_state.name}\n"
+        data += '\t'*(level+1) + f"Initial.class: initial\n"
+        data += '\t'*(level+1) + f"Initial --> \"{state_machine.initial_state.name}\"\n"
 
         # Add in all of the transitions
-        if hasattr(state, "_transitions"):
+        if hasattr(state_machine, "_transitions"):
             for (
                 trans_key,
                 trans_vals,
-            ) in state._transitions._transitions.items():
+            ) in state_machine._transitions._transitions.items():
                 if trans_vals == []:
                     continue
 
-                evt = str(trans_key[1])
+                evt_str = str(trans_key[1])
 
                 for trans_val in trans_vals:
                     src = trans_val["from_state"]
                     dest = trans_val["to_state"]
+
                     if dest is None:
                         dest = src
+
                     action_name = trans_val["action"].__name__
-                    if action_name == "_nop":
-                        action_str = ""
-                    else:
-                        action_str = f" / {action_name}"
+                    if action_name != "_nop":
+                        evt_str += f"\\naction={action_name}()"
 
-                data += f"\t{src.name} --> {dest.name}: {evt}{action_str}\n"
+                    condition_name = trans_val["condition"].__name__
+                    if condition_name != "_nop":
+                        evt_str += f"\\ncondition={condition_name}()"
 
-        data += "\n"
+                    before_name = trans_val["before"].__name__
+                    if before_name != "_nop":
+                        evt_str += f"\\nbefore={before_name}()"
 
-        # Handle substates.
-        for s in self.states:
-            if isinstance(s, StateMachine):
-                data = s._state_to_d2(
-                    s,
-                    data,
-                    highlight_active=highlight_active,
-                    show_visits=show_visits,
-                )
+                    after_name = trans_val["after"].__name__
+                    if after_name != "_nop":
+                        evt_str += f"\\nafter={after_name}()"
 
-        data += "}\n"
+                data += '\t'*(level+1) + f'"{src.name}" --> "{dest.name}": "{evt_str}"\n'
+
+        data += '\t'*(level) + "}\n"
 
         return data
 
@@ -1317,8 +1340,10 @@ class StateMachine(State):
         self,
         filename: str | None = None,
         note: str | None = None,
+        svg: bool = True,
         highlight_active: bool = False,
         show_visits: bool = False,
+        layout_engine: str = "elk",
     ) -> str:
         """
         Generates D2 state diagram.
@@ -1343,11 +1368,6 @@ class StateMachine(State):
         str: The D2 diagram data.
         """
 
-        # TODO: Directly generate SVG
-
-        # TODO: Optional highlight last transition taken
-        # TODO: Option highlight vistited transitions
-
         if filename is None:
             filename = f"HSM-{self.name}.d2"
         if not isinstance(filename, str):
@@ -1363,50 +1383,49 @@ class StateMachine(State):
         data = f"# State Machine: {self.name}\n"
         data += "# D2 State Diagram\n"
         data += "# https://d2lang.com/\n"
+        data += "\n"
+        data += "# Specify Layout engine\n"
+        data += "# Note: Default 'dagre' does not support self-transitions on hierarchical diagrams.\n"
+        data += "vars: {\n"
+        data += "\td2-config: {\n"
+        data += f"\t\tlayout-engine: {layout_engine}\n"
+        data += "\t}\n"
+        data += "}\n"
 
         data += textwrap.dedent(
             """
-        # Specify Layout engine
-        # Default 'dagre' does not support self-transitions on
-        # hierarchical diagrams.
-        vars: {
-            d2-config: {
-                layout-engine: elk
-            }
-        }
+            # Special Classes
+            classes: {
 
-        # Special Classes
-        classes: {
+                state: {
+                    label.near: top-left
+                    style :{
+                        border-radius: 8
+                    }
 
-            state: {
-                label.near: top-left
-                style :{
-                    border-radius: 8
+                }
+
+                initial: {
+                    label: ""
+                    width: 20
+                    height: 20
+                    shape: circle
+                    style: {
+                        fill: "#000000"
+                        stroke: "#000000"
+                    }
+                }
+
+                history: {
+                    label: H
+                    width: 20
+                    height: 20
+                    shape: circle
                 }
 
             }
 
-            initial: {
-                label: ""
-                width: 20
-                height: 20
-                shape: circle
-                style: {
-                    fill: "#000000"
-                    stroke: "#000000"
-                }
-            }
-
-            history: {
-                label: H
-                width: 20
-                height: 20
-                shape: circle
-            }
-
-        }
-
-        """
+            """
         )
 
         # TODO: Support note.
@@ -1414,9 +1433,8 @@ class StateMachine(State):
         #     data += f'note "{note}" as N1\n'
 
         # data += f"\t{self.name}: {self.description}\n"
-        data = self._state_to_d2(
-            self,
-            data,
+        data += StateMachine._state_machine_to_d2(
+            state_machine=self,
             highlight_active=highlight_active,
             show_visits=show_visits,
         )
@@ -1424,6 +1442,11 @@ class StateMachine(State):
         # Write to file
         with open(str(filename), "w") as f:
             f.write(data)
+
+        # Generate svg file if specified using command line tool
+        if svg:
+            import subprocess
+            subprocess.run(["d2", str(filename), str(filename.with_suffix(".svg"))])
 
         return data
 

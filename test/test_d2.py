@@ -53,7 +53,9 @@ def test_d2():
     sm1.initialize()
 
     # Run tool to generate D2 graph
-    d2 = sm1.to_d2()
+    d2 = sm1.to_d2(
+        filename="HSM_test_d2",
+    )
 
     # You can also check the output file: HSM-sm1.d2
     # Verify that the D2 graph is not empty.
@@ -68,11 +70,15 @@ def test_d2_with_tracking(complex_state_machine):
     sm.dispatch(pysm.Event("step_complete"))
     sm.dispatch(pysm.Event("step_complete"))
 
-    fn = f"HSM-{sm.name}-tracking.d2"
-    d2 = sm.to_d2(show_visits=True, highlight_active=True, filename=fn)
+    d2 = sm.to_d2(
+        filename="HSM_test_d2_with_tracking",
+        show_visits=True,
+        highlight_active=True
+    )
 
     assert len(d2) > 0
 
 
 if __name__ == "__main__":
     test_d2()
+    test_d2_with_tracking()
